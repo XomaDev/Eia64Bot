@@ -11,7 +11,6 @@ import java.io.File
 import space.themelon.eia64.runtime.Executor
 import space.themelon.eia64.syntax.Lexer
 import java.io.ByteArrayOutputStream
-import java.io.IOException
 import java.io.PrintStream
 import java.util.StringJoiner
 import kotlin.concurrent.thread
@@ -65,25 +64,19 @@ object Bot {
 
     private fun CommandHandlerEnvironment.handleParseRequest(request: String) {
         val code = request.substring("/parse ".length)
-        try {
+        tryOrFail {
             val parsed = Parser(Executor()).parse(Lexer(code).tokens)
             bot.sendMessage(
                 chatId = ChatId.fromId(message.chat.id),
                 text = "```\n$parsed\n```",
                 parseMode = ParseMode.MARKDOWN_V2,
             )
-        } catch (e: IOException) {
-            bot.sendMessage(
-                chatId = ChatId.fromId(message.chat.id),
-                text = e.message.toString(),
-                parseMode = ParseMode.MARKDOWN_V2
-            )
         }
     }
 
     private fun CommandHandlerEnvironment.handleLexRequest(request: String) {
         val code = request.substring("/lex ".length)
-        try {
+        tryOrFail {
             val joiner = StringJoiner("\n")
             Lexer(code).tokens.forEach { joiner.add(it.toString()) }
             bot.sendMessage(
@@ -91,20 +84,17 @@ object Bot {
                 text = "```\n$joiner\n```",
                 parseMode = ParseMode.MARKDOWN_V2,
             )
-        } catch (e: Exception) {
-            bot.sendMessage(
-                chatId = ChatId.fromId(message.chat.id),
-                text = e.message.toString(),
-                parseMode = ParseMode.MARKDOWN_V2
-            )
         }
     }
 
     private fun CommandHandlerEnvironment.handleRequest(it: String) {
         val code = it.substring("/eia ".length)
+        tryOrFail { tryExecution(code) }
+    }
 
+    private fun CommandHandlerEnvironment.tryOrFail(block: () -> Unit) {
         try {
-            tryExecution(code)
+            block()
         } catch (e: Exception) {
             bot.sendMessage(
                 chatId = ChatId.fromId(message.chat.id),
@@ -112,7 +102,6 @@ object Bot {
                 parseMode = ParseMode.MARKDOWN
             )
         }
-
     }
 
     private fun CommandHandlerEnvironment.tryExecution(code: String) {
